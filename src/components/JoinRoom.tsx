@@ -43,7 +43,7 @@ export function JoinRoom({ onCreateRoom, onJoinRoom, error, onClearError }: Join
         <div className="text-center mb-8">
           <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-orange-400 mb-2 tracking-tight"
             style={{ fontFamily: 'Georgia, serif' }}>
-            Бумажки
+             BUMASHKI
           </h1>
         </div>
 

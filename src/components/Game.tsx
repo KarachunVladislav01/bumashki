@@ -33,21 +33,14 @@ export function Game({ roomCode, players, currentPlayerId, onLeave }: GameProps)
                     : 'bg-slate-900/30'
                 }`}
               >
-                <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center text-xl font-bold mb-2 ${
-                  player.isHost 
-                    ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-slate-900' 
-                    : 'bg-slate-700 text-slate-300'
-                }`}>
-                  {player.name[0].toUpperCase()}
-                </div>
                 <p className={`font-medium truncate ${
                   player.id === currentPlayerId ? 'text-amber-200' : 'text-slate-200'
                 }`}>
                   {player.name}
+                  {player.id === currentPlayerId && (
+                    <span className="text-slate-500 text-xs ml-1">(вы)</span>
+                  )}
                 </p>
-                {player.id === currentPlayerId && (
-                  <p className="text-slate-500 text-xs">(вы)</p>
-                )}
               </div>
             ))}
           </div>

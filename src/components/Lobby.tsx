@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Player } from '../hooks/useRoom';
 
 interface LobbyProps {
@@ -18,38 +19,35 @@ export function Lobby({
   onLeave 
 }: LobbyProps) {
   const canStart = players.length >= 2;
+  const [copied, setCopied] = useState(false);
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(roomCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        
-        {/* Большой код комнаты на весь экран */}
-        <div className="text-center mb-8">
-          <p className="text-slate-400 text-sm mb-3">Код комнаты</p>
-          <button 
-            onClick={copyRoomCode}
-            className="group inline-block"
-          >
-            <div className="text-6xl sm:text-7xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-orange-400 tracking-[0.15em] mb-2">
-              {roomCode}
-            </div>
-            <p className="text-slate-500 text-sm flex items-center justify-center gap-2 group-hover:text-amber-400 transition-colors">
+          <div className="text-center mb-8">
+            <button 
+              onClick={copyRoomCode}
+              className="inline-flex items-center gap-3 group"
+            >
+              <span className="text-6xl sm:text-7xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-orange-400 tracking-[0.15em]">
+                {roomCode}
+              </span>
               <svg 
-                className="w-4 h-4" 
+                className={`w-12 h-12 sm:w-14 sm:h-14 transition-colors duration-300 ${copied ? 'text-amber-400' : 'text-slate-500 [@media(hover:hover)]:group-hover:text-amber-400'}`}
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              Нажмите чтобы скопировать
-            </p>
-          </button>
-        </div>
+            </button>
+          </div>
 
         {/* Карточка с игроками */}
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-slate-700/50 mb-6">
@@ -74,16 +72,6 @@ export function Lobby({
                   animation: `fadeSlideIn 0.3s ease-out ${index * 0.05}s both`
                 }}
               >
-                {/* Аватар */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
-                  player.isHost 
-                    ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-slate-900' 
-                    : 'bg-slate-700 text-slate-300'
-                }`}>
-                  {player.name[0].toUpperCase()}
-                </div>
-
-                {/* Имя */}
                 <div className="flex-1 min-w-0">
                   <p className={`font-medium truncate ${
                     player.id === currentPlayerId ? 'text-amber-200' : 'text-slate-200'
