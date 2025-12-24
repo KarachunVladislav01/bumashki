@@ -49,7 +49,6 @@ function App() {
       roomCode={roomCode}
       players={roomState.players}
       currentPlayerId={playerId}
-      isHost={isHost}
       onLeave={leaveRoom}
     />
   );

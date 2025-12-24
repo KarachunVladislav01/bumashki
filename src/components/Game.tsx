@@ -4,11 +4,10 @@ interface GameProps {
   roomCode: string;
   players: Player[];
   currentPlayerId: string;
-  isHost: boolean;
   onLeave: () => void;
 }
 
-export function Game({ roomCode, players, currentPlayerId, isHost, onLeave }: GameProps) {
+export function Game({ roomCode, players, currentPlayerId, onLeave }: GameProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-lg text-center">

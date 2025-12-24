@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 interface JoinRoomProps {
-  onCreateRoom: (name: string) => Promise<void>;
+  onCreateRoom: (name: string) => Promise<string>;
   onJoinRoom: (code: string, name: string) => Promise<void>;
   error: string | null;
   onClearError: () => void;
