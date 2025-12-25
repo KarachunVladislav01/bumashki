@@ -11,10 +11,12 @@ interface JoinRoomProps {
 }
 
 export function JoinRoom({ onCreateRoom, onJoinRoom, error, onClearError }: JoinRoomProps) {
-  const [ name, setName ] = useState('');
-  const [ code, setCode ] = useState('');
-  const [ isLoading, setIsLoading ] = useState(false);
-  const [ isJoining, setIsJoining ] = useState(false);
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const isNameValid = name.trim().length > 0;
@@ -23,6 +25,21 @@ export function JoinRoom({ onCreateRoom, onJoinRoom, error, onClearError }: Join
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      setErrorText(error);
+      setShowError(true);
+      const timer = setTimeout(() => {
+        setShowError(false);
+        setTimeout(() => {
+          onClearError();
+          setErrorText(null);
+        }, 300);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, onClearError]);
 
   const handleCreate = async () => {
     if (!isNameValid) return;
@@ -48,6 +65,15 @@ export function JoinRoom({ onCreateRoom, onJoinRoom, error, onClearError }: Join
 
   return (
     <div className="min-h-screen paper-bg flex justify-center p-10 sm:p-4">
+      {errorText && (
+        <div 
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 p-3 sm:p-4 error-box text-base sm:text-lg max-w-sm w-[calc(100%-2rem)] text-center transition-all duration-300 ${
+            showError ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+          }`}
+        >
+          {errorText}
+        </div>
+      )}
       <div className="w-full max-w-md mt-52 sm:mt-32">
         <div className="text-center mb-10 sm:mb-16">
           <h1 className="text-4xl sm:text-6xl font-bold pencil-text tracking-wide"
@@ -76,11 +102,6 @@ export function JoinRoom({ onCreateRoom, onJoinRoom, error, onClearError }: Join
                 onCodeChange={setCode}
               />
 
-              {error && (
-                <div className="p-2 sm:p-3 error-box text-base sm:text-lg" style={{ transform: 'rotate(0.3deg)' }}>
-                  {error}
-                </div>
-              )}
 
               <div className="text-center mt-10 sm:mt-16">
                 <button
