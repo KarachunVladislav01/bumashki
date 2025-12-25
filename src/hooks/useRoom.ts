@@ -16,6 +16,8 @@ export interface Player {
   name: string;
   joinedAt: number;
   isHost: boolean;
+  word?: string;
+  isReady?: boolean;
 }
 
 export interface RoomState {
@@ -113,7 +115,7 @@ export function useRoom() {
       
       if (!data) {
         if (!isLeavingRef.current) {
-          setError('Комната была закрыта администратором');
+          setError('Room was closed by the administrator');
         }
         setRoomCode(null);
         setPlayerId(null);
@@ -134,7 +136,9 @@ export function useRoom() {
               id,
               name: player.name,
               joinedAt: player.joinedAt,
-              isHost: id === data.hostId
+              isHost: id === data.hostId,
+              word: player.word,
+              isReady: player.isReady || false
             }))
         : [];
 
@@ -147,7 +151,7 @@ export function useRoom() {
       });
       setIsConnected(true);
     }, (err) => {
-      setError('Ошибка подключения: ' + err.message);
+      setError('Connection error: ' + err.message);
       setIsConnected(false);
     });
 
@@ -183,7 +187,7 @@ export function useRoom() {
       
       return code;
     } catch (err: any) {
-      setError('Не удалось создать комнату: ' + err.message);
+      setError('Failed to create room: ' + err.message);
       throw err;
     }
   }, []);
@@ -199,14 +203,14 @@ export function useRoom() {
       const snapshot = await get(roomRef);
       
       if (!snapshot.exists()) {
-        setError('Комната с таким кодом не найдена');
+        setError('Room with this code not found');
         return;
       }
 
       const roomData = snapshot.val();
       
       if (roomData.gamePhase !== 'lobby') {
-        setError('Игра уже началась, нельзя присоединиться');
+        setError('Game already started, cannot join');
         return;
       }
 
@@ -224,7 +228,7 @@ export function useRoom() {
       setPlayerId(newPlayerId);
       saveSession(normalizedCode, newPlayerId, playerName);
     } catch (err: any) {
-      setError('Не удалось присоединиться: ' + err.message);
+      setError('Failed to join: ' + err.message);
       throw err;
     }
   }, []);
@@ -248,7 +252,7 @@ export function useRoom() {
         await remove(roomRef);
       }
     } catch (err) {
-      console.error('Ошибка при выходе:', err);
+      console.error('Error leaving:', err);
     }
 
     clearSession();
@@ -313,7 +317,6 @@ export function useRoom() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [roomCode, playerId, roomState.hostId]);
 
-  // Начать игру (только для хоста)
   const startGame = useCallback(async () => {
     if (!roomCode || roomState.hostId !== playerId) return;
 
@@ -321,9 +324,23 @@ export function useRoom() {
       const gamePhaseRef = ref(database, `rooms/${roomCode}/gamePhase`);
       await set(gamePhaseRef, 'playing');
     } catch (err: any) {
-      setError('Не удалось начать игру: ' + err.message);
+      setError('Failed to start game: ' + err.message);
     }
   }, [roomCode, playerId, roomState.hostId]);
+
+  const submitWord = useCallback(async (word: string) => {
+    if (!roomCode || !playerId) return;
+
+    try {
+      const playerRef = ref(database, `rooms/${roomCode}/players/${playerId}`);
+      await update(playerRef, { 
+        word: word.trim(),
+        isReady: true 
+      });
+    } catch (err: any) {
+      setError('Failed to send word: ' + err.message);
+    }
+  }, [roomCode, playerId]);
 
   return {
     roomCode,
@@ -336,6 +353,7 @@ export function useRoom() {
     joinRoom,
     leaveRoom,
     startGame,
+    submitWord,
     clearError: () => setError(null)
   };
 }

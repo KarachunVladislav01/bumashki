@@ -14,6 +14,7 @@ function App() {
     joinRoom,
     leaveRoom,
     startGame,
+    submitWord,
     clearError
   } = useRoom();
 
@@ -39,6 +40,7 @@ function App() {
         isHost={isHost}
         onStartGame={startGame}
         onLeave={leaveRoom}
+        onSubmitWord={submitWord}
       />
     );
   }

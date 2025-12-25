@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Player } from '../hooks/useRoom';
 import { SketchBox } from '../components/SketchBox';
 import { PencilButton } from '../components/PencilButton';
+import { PencilInput } from '../components/PencilInput';
 
 interface LobbyProps {
   roomCode: string;
@@ -10,6 +11,7 @@ interface LobbyProps {
   isHost: boolean;
   onStartGame: () => void;
   onLeave: () => void;
+  onSubmitWord: (word: string) => void;
 }
 
 export function Lobby({
@@ -18,15 +20,39 @@ export function Lobby({
   currentPlayerId,
   isHost,
   onStartGame,
-  onLeave
+  onLeave,
+  onSubmitWord
 }: LobbyProps) {
   const canStart = players.length >= 2;
-  const [ copied, setCopied ] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [word, setWord] = useState('');
+  const wordInputRef = useRef<HTMLInputElement>(null);
+  
+  const currentPlayer = players.find(p => p.id === currentPlayerId);
+  const isReady = currentPlayer?.isReady || false;
+
+  useEffect(() => {
+    wordInputRef.current?.focus();
+  }, []);
+
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.id === currentPlayerId) return -1;
+    if (b.id === currentPlayerId) return 1;
+    if (a.isHost) return -1;
+    if (b.isHost) return 1;
+    return a.joinedAt - b.joinedAt;
+  });
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(roomCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1000);
+  };
+
+  const handleSubmitWord = () => {
+    if (word.trim()) {
+      onSubmitWord(word);
+    }
   };
 
   return (
@@ -60,26 +86,59 @@ export function Lobby({
 
         <SketchBox>
           <div className="px-4 sm:px-6 py-4 sm:py-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[var(--pencil)] text-xl sm:text-2xl">Players</h2>
-              <span className="text-[var(--pencil-faint)] text-base">
-                {players.length}
-              </span>
-            </div>
+            <PencilInput
+              ref={wordInputRef}
+              value={word}
+              onChange={(e) => setWord(e.target.value)}
+              placeholder="Think of a word..."
+              maxLength={50}
+            />
+            {isHost ? (
+              <div className="mt-4">
+                <PencilButton
+                  onClick={onStartGame}
+                  disabled={!canStart || !word.trim()}
+                  rotation={-0.5}
+                >
+                  {canStart ? 'Start game' : 'Need 2+ players'}
+                </PencilButton>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <PencilButton
+                  onClick={handleSubmitWord}
+                  disabled={!word.trim()}
+                  rotation={0.3}
+                >
+                  {isReady ? 'Ready ✓' : 'Ready'}
+                </PencilButton>
+              </div>
+            )}
+            {isReady && !isHost && (
+              <p className="mt-2 text-[var(--pencil-faint)] text-sm italic text-center">
+                Word sent
+              </p>
+            )}
+          </div>
 
+        <div className="mt-4 sm:mt-6"></div>
+
+          <div className="px-4 sm:px-6 py-4 sm:py-6">
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {players.map((player, index) => (
+              {sortedPlayers.map((player, index) => (
                 <div 
                   key={player.id}
-                  className={`flex items-center gap-3 p-2 sm:p-3 transition-all border-b-[1px] ${
-                    player.id === currentPlayerId 
-                      ? 'bg-[var(--highlight)] border-[var(--pencil-faint)]' 
-                      : 'border-[var(--paper-lines)]'
-                  }`}
+                  className="flex items-center gap-3 p-2 sm:p-3 transition-all border-b-[1px] border-[var(--paper-lines)]"
                   style={{
                     animation: `fadeSlideIn 0.3s ease-out ${index * 0.05}s both`
                   }}
                 >
+                  {player.isReady && (
+                    <svg className="w-5 h-5 text-[var(--pencil)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  
                   <div className="flex-1 min-w-0">
                     <p className="text-[var(--pencil)] text-lg sm:text-xl truncate">
                       {player.name}
@@ -112,38 +171,18 @@ export function Lobby({
         </SketchBox>
 
         <div className="mt-6 sm:mt-8 space-y-3">
-          {isHost && (
-            <PencilButton
-              onClick={onStartGame}
-              disabled={!canStart}
-              rotation={-0.5}
-            >
-              {canStart ? 'Start game' : 'Need 2+ players'}
-            </PencilButton>
-          )}
-
-          {!isHost && (
-            <div className="w-full py-3 sm:py-4 px-4 sm:px-6 text-[var(--pencil-faint)] text-center text-lg sm:text-xl border-2 border-dashed border-[var(--pencil-faint)]">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 bg-[var(--pencil-faint)] rounded-full animate-pulse"></div>
-                <span className="italic">Waiting for host...</span>
-              </div>
-            </div>
-          )}
-
           <button
             onClick={onLeave}
-            className={`w-full py-2 sm:py-3 px-4 sm:px-6 text-base sm:text-lg transition-all ${
+            className={`w-full py-2 sm:py-3 px-4 sm:px-6 text-base sm:text-lg transition-all underline underline-offset-4 ${
               isHost 
-                ? 'text-[var(--eraser-pink)] border-b-2 border-[var(--eraser-pink)] hover:text-[var(--pencil)] hover:border-[var(--pencil)]' 
-                : 'text-[var(--pencil-faint)] hover:text-[var(--pencil)] underline underline-offset-4'
+                ? 'text-[var(--eraser-pink)] hover:text-[var(--pencil)]' 
+                : 'text-[var(--pencil-faint)] hover:text-[var(--pencil)]'
             }`}
           >
             {isHost ? 'Close room' : 'Leave room'}
           </button>
         </div>
       </div >
-
     <style>{`
         @keyframes fadeSlideIn {
           from {
