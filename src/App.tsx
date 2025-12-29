@@ -48,7 +48,6 @@ function App() {
   // Игра
   return (
     <Game
-      roomCode={roomCode}
       players={roomState.players}
       currentPlayerId={playerId}
       onLeave={leaveRoom}
