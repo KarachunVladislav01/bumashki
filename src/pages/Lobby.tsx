@@ -11,7 +11,7 @@ interface LobbyProps {
   players: Player[];
   currentPlayerId: string;
   isHost: boolean;
-  onStartGame: () => void;
+  onStartGame: (hostWord: string) => void | Promise<void>;
   onLeave: () => void;
   onSubmitWord: (word: string) => void;
 }
@@ -25,13 +25,19 @@ export function Lobby({
   onLeave,
   onSubmitWord
 }: LobbyProps) {
-  const canStart = players.length >= 2;
   const [ copied, setCopied ] = useState(false);
   const [ word, setWord ] = useState('');
   const wordInputRef = useRef<HTMLInputElement>(null);
 
   const currentPlayer = players.find(p => p.id === currentPlayerId);
   const isReady = currentPlayer?.isReady || false;
+  const allPlayersReady = players
+    .filter(p => p.id !== currentPlayerId)
+    .every(p => p.isReady);
+  const canStart = players.length >= 2 && allPlayersReady;
+  const startLabel = players.length < 2
+    ? 'Need 2+ players'
+    : allPlayersReady ? 'Start game' : 'Waiting for players to submit words';
 
   useEffect(() => {
     wordInputRef.current?.focus();
@@ -54,6 +60,12 @@ export function Lobby({
   const handleSubmitWord = () => {
     if (word.trim()) {
       onSubmitWord(word);
+    }
+  };
+
+  const handleStartGame = () => {
+    if (word.trim()) {
+      onStartGame(word);
     }
   };
 
@@ -98,11 +110,11 @@ export function Lobby({
             {isHost ? (
               <div className="mt-4">
                 <PencilButton
-                  onClick={onStartGame}
+                  onClick={handleStartGame}
                   disabled={!canStart || !word.trim()}
                   rotation={-0.5}
                 >
-                  {canStart ? 'Start game' : 'Need 2+ players'}
+                  {startLabel}
                 </PencilButton>
               </div>
             ) : (

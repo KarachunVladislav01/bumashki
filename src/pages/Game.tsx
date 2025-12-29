@@ -1,59 +1,56 @@
 import { Player } from '../hooks/useRoom';
 
 interface GameProps {
-  roomCode: string;
   players: Player[];
   currentPlayerId: string;
   onLeave: () => void;
 }
 
-export function Game({ roomCode, players, currentPlayerId, onLeave }: GameProps) {
+export function Game({ players, currentPlayerId, onLeave }: GameProps) {
+  const playerNameMap = players.reduce<Record<string, string>>((acc, player) => {
+    acc[player.id] = player.name;
+    return acc;
+  }, {});
+  const visiblePlayers = players.filter((player) => player.id !== currentPlayerId);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-lg text-center">
-        {/* Заголовок */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-orange-400 mb-2">
-            Game started!
-          </h1>
-          <p className="text-slate-400">Room: {roomCode}</p>
-        </div>
 
         {/* Список игроков */}
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-slate-700/50 mb-6">
           <h2 className="text-slate-200 font-semibold mb-4">Players in game</h2>
           
-          <div className="grid grid-cols-2 gap-3">
-            {players.map((player) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {visiblePlayers.map((player) => (
               <div 
                 key={player.id}
                 className={`p-4 rounded-xl ${
-                  player.id === currentPlayerId 
-                    ? 'bg-amber-500/10 border border-amber-500/30' 
-                    : 'bg-slate-900/30'
+                  player.assignedWord
+                    ? 'bg-slate-900/30 border border-slate-800/70'
+                    : 'bg-slate-900/10 border border-dashed border-slate-700'
                 }`}
               >
-                <p className={`font-medium truncate ${
-                  player.id === currentPlayerId ? 'text-amber-200' : 'text-slate-200'
-                }`}>
+                <p className="font-semibold text-slate-100 truncate">
                   {player.name}
-                  {player.id === currentPlayerId && (
-                    <span className="text-slate-500 text-xs ml-1">(you)</span>
+                  {player.assignedFrom && (
+                    <span className="text-xs text-slate-500 ml-1">
+                      (word from {playerNameMap[player.assignedFrom] || 'another player'})
+                    </span>
                   )}
+                </p>
+                <p className="text-sm text-amber-200 mt-2 break-words">
+                  {player.assignedWord || 'Waiting for word...'}
                 </p>
               </div>
             ))}
-          </div>
-        </div>
 
-        {/* Заглушка для игровой логики */}
-        <div className="bg-slate-800/30 rounded-3xl p-8 border border-dashed border-slate-700 mb-6">
-          <p className="text-slate-500">
-            Game logic goes here
-          </p>
-          <p className="text-slate-600 text-sm mt-2">
-            (add your game mechanics)
-          </p>
+            {visiblePlayers.length === 0 && (
+              <div className="col-span-full text-slate-500 italic">
+                Waiting for other players to join...
+              </div>
+            )}
+          </div>
         </div>
 
         <button
@@ -66,4 +63,3 @@ export function Game({ roomCode, players, currentPlayerId, onLeave }: GameProps)
     </div>
   );
 }
-

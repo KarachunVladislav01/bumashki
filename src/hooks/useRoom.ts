@@ -7,7 +7,8 @@ import {
   push,
   serverTimestamp,
   get,
-  update
+  update,
+  runTransaction
 } from 'firebase/database';
 import { database } from '../firebase';
 
@@ -17,13 +18,30 @@ export interface Player {
   joinedAt: number;
   isHost: boolean;
   word?: string;
+  assignedWord?: string;
+  assignedFrom?: string;
   isReady?: boolean;
+}
+
+export interface AssignedWord {
+  word: string;
+  authorId: string;
+}
+
+export interface AssignmentTableRow {
+  playerId: string;
+  name: string;
+  word: string;
+  assignedWord: string;
+  assignedFrom: string;
 }
 
 export interface RoomState {
   players: Player[];
   gamePhase: 'lobby' | 'playing' | 'ended';
   hostId: string | null;
+  assignments: Record<string, AssignedWord>;
+  assignmentTable: Record<string, AssignmentTableRow>;
 }
 
 const HEARTBEAT_INTERVAL = 5000;
@@ -56,13 +74,62 @@ function clearSession() {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
+function shuffleArray<T>(array: T[]): T[] {
+  const copy = [ ...array ];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ copy[i], copy[j] ] = [ copy[j], copy[i] ];
+  }
+  return copy;
+}
+
+// Generates a random distribution where no player receives their own word.
+function buildAssignments(playersWithWords: { id: string; word: string }[]): Record<string, AssignedWord> {
+  if (playersWithWords.length === 1) {
+    return { [playersWithWords[0].id]: { word: playersWithWords[0].word, authorId: playersWithWords[0].id } };
+  }
+
+  const receivers = [ ...playersWithWords ];
+  const wordOwners = [ ...playersWithWords ];
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const shuffled = shuffleArray(wordOwners);
+    const hasSelfWord = receivers.some((receiver, index) => receiver.id === shuffled[index].id);
+
+    if (!hasSelfWord) {
+      const assignments: Record<string, AssignedWord> = {};
+      receivers.forEach((receiver, index) => {
+        assignments[receiver.id] = {
+          word: shuffled[index].word,
+          authorId: shuffled[index].id
+        };
+      });
+      return assignments;
+    }
+  }
+
+  // Fallback: rotate to guarantee no one gets their own word
+  const rotated = wordOwners.slice(1).concat(wordOwners[0]);
+  const assignments: Record<string, AssignedWord> = {};
+  receivers.forEach((receiver, index) => {
+    const giver = rotated[index % rotated.length];
+    assignments[receiver.id] = {
+      word: giver.word,
+      authorId: giver.id
+    };
+  });
+  return assignments;
+}
+
 export function useRoom() {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [roomState, setRoomState] = useState<RoomState>({
     players: [],
     gamePhase: 'lobby',
-    hostId: null
+    hostId: null,
+    assignments: {},
+    assignmentTable: {}
   });
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -132,14 +199,19 @@ export function useRoom() {
               const lastSeen = player.lastSeen || player.joinedAt;
               return now - lastSeen < PLAYER_TIMEOUT;
             })
-            .map(([id, player]: [string, any]) => ({
-              id,
-              name: player.name,
-              joinedAt: player.joinedAt,
-              isHost: id === data.hostId,
-              word: player.word,
-              isReady: player.isReady || false
-            }))
+            .map(([id, player]: [string, any]) => {
+              const assignment = data.assignments?.[id];
+              return {
+                id,
+                name: player.name,
+                joinedAt: player.joinedAt,
+                isHost: id === data.hostId,
+                word: player.word,
+                assignedWord: player.assignedWord || assignment?.word,
+                assignedFrom: player.assignedFrom || assignment?.authorId,
+                isReady: player.isReady || false
+              };
+            })
         : [];
 
       players.sort((a, b) => a.joinedAt - b.joinedAt);
@@ -147,7 +219,9 @@ export function useRoom() {
       setRoomState({
         players,
         gamePhase: data.gamePhase || 'lobby',
-        hostId: data.hostId
+        hostId: data.hostId,
+        assignments: data.assignments || {},
+        assignmentTable: data.assignmentTable || {}
       });
       setIsConnected(true);
     }, (err) => {
@@ -317,12 +391,67 @@ export function useRoom() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [roomCode, playerId, roomState.hostId]);
 
-  const startGame = useCallback(async () => {
+  const startGame = useCallback(async (hostWord?: string) => {
     if (!roomCode || roomState.hostId !== playerId) return;
 
     try {
-      const gamePhaseRef = ref(database, `rooms/${roomCode}/gamePhase`);
-      await set(gamePhaseRef, 'playing');
+      const roomRef = ref(database, `rooms/${roomCode}`);
+      const snapshot = await get(roomRef);
+      const data = snapshot.val();
+
+      if (!data?.players) {
+        setError('No players in room');
+        return;
+      }
+
+      const playersWithWords = Object.entries<any>(data.players).map(([id, player]) => ({
+        id,
+        word: (id === playerId && hostWord ? hostWord : player.word || '').trim()
+      }));
+
+      const missingWord = playersWithWords.find((player) => !player.word);
+      if (missingWord) {
+        setError('Every player must submit a word before starting');
+        return;
+      }
+
+      const assignments = buildAssignments(playersWithWords);
+      const assignmentTable = Object.entries(assignments).reduce<Record<string, AssignmentTableRow>>((acc, [receiverId, assignment]) => {
+        const playerEntry = data.players?.[receiverId];
+        acc[receiverId] = {
+          playerId: receiverId,
+          name: playerEntry?.name || '',
+          word: playerEntry?.word || '',
+          assignedWord: assignment.word,
+          assignedFrom: assignment.authorId
+        };
+        return acc;
+      }, {});
+
+      const updates: Record<string, any> = {
+        [`rooms/${roomCode}/gamePhase`]: 'playing',
+        [`rooms/${roomCode}/assignments`]: assignments,
+        [`rooms/${roomCode}/assignmentTable`]: assignmentTable
+      };
+
+      if (hostWord?.trim()) {
+        updates[`rooms/${roomCode}/players/${playerId}/word`] = hostWord.trim();
+        updates[`rooms/${roomCode}/players/${playerId}/isReady`] = true;
+      }
+
+      Object.entries(assignments).forEach(([receiverId, assignment]) => {
+        updates[`rooms/${roomCode}/players/${receiverId}/assignedWord`] = assignment.word;
+        updates[`rooms/${roomCode}/players/${receiverId}/assignedFrom`] = assignment.authorId;
+      });
+
+      await update(ref(database), updates);
+
+      // Append each submitted word to a global archive list (stored as an array).
+      const archiveRef = ref(database, 'wordArchive');
+      await runTransaction(archiveRef, (current) => {
+        const existing = Array.isArray(current) ? current : [];
+        return [ ...existing, ...playersWithWords.map((player) => player.word) ];
+      });
     } catch (err: any) {
       setError('Failed to start game: ' + err.message);
     }
