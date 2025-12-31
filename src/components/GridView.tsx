@@ -52,7 +52,7 @@ function useElementSize<T extends HTMLElement>() {
   return { ref, size };
 }
 
-export function GoogleMeetLikeGrid<T>({
+export function GridList<T>({
   items,
   renderItem,
   className = "",

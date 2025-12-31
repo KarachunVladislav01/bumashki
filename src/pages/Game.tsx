@@ -1,4 +1,4 @@
-import { GoogleMeetLikeGrid } from '../components/GridView';
+import { GridList } from '../components/GridView';
 import { Player } from '../hooks/useRoom';
 
 interface GameProps {
@@ -11,7 +11,7 @@ export function Game({ players, currentPlayerId, onLeave: _onLeave }: GameProps)
   const visiblePlayers = players.filter((player) => player.id !== currentPlayerId);
 
   return (
-     <GoogleMeetLikeGrid
+     <GridList
       items={visiblePlayers}
       renderItem={(p) => (
         <div className="h-full w-full flex items-center justify-center">
