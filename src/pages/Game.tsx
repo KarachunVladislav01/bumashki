@@ -16,8 +16,6 @@ export function Game({ players, currentPlayerId, onLeave }: GameProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-950 via-slate-900 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-lg text-center">
-
-        {/* Список игроков */}
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-slate-700/50 mb-6">
           <h2 className="text-slate-200 font-semibold mb-4">Players in game</h2>
           
@@ -44,12 +42,6 @@ export function Game({ players, currentPlayerId, onLeave }: GameProps) {
                 </p>
               </div>
             ))}
-
-            {visiblePlayers.length === 0 && (
-              <div className="col-span-full text-slate-500 italic">
-                Waiting for other players to join...
-              </div>
-            )}
           </div>
         </div>
 
